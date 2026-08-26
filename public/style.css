@@ -1,9 +1,9 @@
 :root{
   --bg:#F7F5F0;
   --panel:#FFFFFF;
-  --card:#FDFCFA;
-  --border:#E6E2D8;
-  --border-soft:#EEEBE2;
+  --rc-card:#FDFCFA;
+  --rc-border:#E6E2D8;
+  --rc-border-soft:#EEEBE2;
   --ink:#1E2430;
   --gray:#6B7280;
   --gray-soft:#9AA1AC;
@@ -18,7 +18,7 @@
   --purple:#7C5CD8;
   --purple-soft:#F0EBFC;
   --badge:#EFF1F4;
-  --radius:14px;
+  --rc-radius:14px;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
@@ -38,7 +38,7 @@ body{
 /* ---------- FORM PANEL ---------- */
 .form-panel{
   background:#FFFFFF;
-  border-right:1px solid var(--border);
+  border-right:1px solid var(--rc-border);
   padding:24px;
   overflow-y:auto;
   max-height:100vh;
@@ -76,7 +76,7 @@ body{
 .section{
   margin-bottom:22px;
   padding-bottom:20px;
-  border-bottom:1px solid var(--border-soft);
+  border-bottom:1px solid var(--rc-border-soft);
 }
 .section:last-child{border-bottom:none;}
 .section-title{
@@ -101,7 +101,7 @@ body{
 .field input[type=text], .field input[type=date], .field input[type=number], .field textarea{
   width:100%;
   padding:8px 10px;
-  border:1px solid var(--border);
+  border:1px solid var(--rc-border);
   border-radius:8px;
   font-size:13px;
   font-family:inherit;
@@ -122,7 +122,7 @@ body{
   display:flex;
   align-items:center;
   gap:12px;
-  border:1px solid var(--border);
+  border:1px solid var(--rc-border);
   border-radius:10px;
   padding:10px;
   background:#FCFCFB;
@@ -153,7 +153,7 @@ body{
 .tiny-btn:hover{opacity:.85;}
 
 .test-row, .subject-row{
-  border:1px solid var(--border);
+  border:1px solid var(--rc-border);
   border-radius:10px;
   padding:10px;
   margin-bottom:10px;
@@ -163,7 +163,7 @@ body{
 .test-row .grid4{display:grid;grid-template-columns:1.4fr 1fr 0.8fr 0.8fr;gap:6px;}
 .subject-row .grid2{display:grid;grid-template-columns:1.6fr 0.8fr;gap:6px;}
 .test-row input, .subject-row input{
-  padding:6px 7px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:#fff;width:100%;
+  padding:6px 7px;font-size:12px;border:1px solid var(--rc-border);border-radius:6px;background:#fff;width:100%;
 }
 .mini-label{font-size:9.5px;color:var(--gray-soft);margin-bottom:2px;display:block;font-weight:600;}
 .remove-btn{
@@ -191,33 +191,61 @@ body{
   display:flex;
   justify-content:center;
   align-items:flex-start;
+  background:#EFEDE6;
 }
+/* #report is only the stack container — each .page-block is the visible sheet and
+   maps 1:1 to a page in the exported PDF. */
 #report{
   width:760px;
-  background:#FBFAF7;
-  border:1px solid #ECE8DE;
-  border-radius:6px;
-  padding:44px 46px 50px;
+  background:transparent;
+  border:none;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:30px;
 }
 #report .page-block{
-  margin-bottom:34px;
+  position:relative;
+  background:#FBFAF7;
+  border:1px solid #ECE8DE;
+  border-radius:8px;
+  padding:30px 34px 34px;
+  box-shadow:0 1px 3px rgba(30,36,48,0.07);
 }
-#report .page-block:last-child{margin-bottom:0;}
+/* Added by labelPages() and marked data-html2canvas-ignore, so it labels the
+   preview without being captured — the PDF gets its own footer instead. */
+.page-tag{
+  position:absolute;
+  top:-11px;
+  right:18px;
+  background:var(--blue);
+  color:#fff;
+  font-size:9.5px;
+  font-weight:800;
+  letter-spacing:1px;
+  padding:4px 11px;
+  border-radius:999px;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
 
-/* header */
-.rc-header{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+/* header — first page only (it lives in the first .page-block) */
+.rc-header{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:4px;}
 .rc-logo{
-  width:44px;height:44px;
+  width:74px;height:74px;
   border:none;
   display:flex;align-items:center;justify-content:center;
-  font-size:20px;background:transparent;flex-shrink:0;
+  font-size:34px;background:transparent;flex-shrink:0;
   overflow:hidden;
 }
 .rc-logo img{width:100%;height:100%;object-fit:contain;}
-.rc-brand-name{font-size:22px;font-weight:800;color:#111827;letter-spacing:0.3px;}
+.rc-brand-name{
+  font-size:38px;font-weight:800;color:#111827;letter-spacing:0.5px;line-height:1.1;
+}
 .rc-powered{
-  font-size:10.5px;color:var(--gray-soft);letter-spacing:2px;font-weight:600;
-  margin:2px 0 22px 0;
+  font-size:12px;color:var(--gray-soft);letter-spacing:3px;font-weight:700;
+  margin:6px 0 26px 0;
+  text-align:center;
 }
 .rc-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
 .rc-title{font-size:26px;font-weight:800;color:var(--blue);letter-spacing:0.2px;}
@@ -226,11 +254,11 @@ body{
   padding:6px 14px;border-radius:999px;letter-spacing:0.4px;white-space:nowrap;
 }
 .rc-date{font-size:12.5px;color:var(--gray);margin-bottom:18px;}
-.rc-hr{border:none;border-top:1px solid var(--border);margin:0 0 22px;}
+.rc-hr{border:none;border-top:1px solid var(--rc-border);margin:0 0 22px;}
 
 .info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:30px;}
 .info-box{
-  border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:#fff;
+  border:1px solid var(--rc-border);border-radius:10px;padding:12px 14px;background:#fff;
 }
 .info-box .lbl{font-size:9.5px;color:var(--gray-soft);letter-spacing:1px;font-weight:700;margin-bottom:5px;text-transform:uppercase;}
 .info-box .val{font-size:15px;font-weight:700;color:var(--ink);}
@@ -242,17 +270,17 @@ body{
 table.test-table{width:100%;border-collapse:collapse;margin-bottom:6px;}
 table.test-table th{
   text-align:left;font-size:10px;color:var(--gray-soft);text-transform:uppercase;letter-spacing:0.6px;
-  padding:0 8px 10px 0;font-weight:700;border-bottom:1px solid var(--border);
+  padding:0 8px 10px 0;font-weight:700;border-bottom:1px solid var(--rc-border);
 }
 table.test-table td{
-  padding:12px 8px 12px 0;font-size:13.5px;color:var(--ink);border-bottom:1px solid var(--border-soft);
+  padding:12px 8px 12px 0;font-size:13.5px;color:var(--ink);border-bottom:1px solid var(--rc-border-soft);
 }
 table.test-table td.name{font-weight:700;}
 table.test-table td.pct{font-weight:800;color:var(--ink);}
 
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px;}
 .stat-card{
-  border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff;
+  border:1px solid var(--rc-border);border-radius:10px;padding:12px;background:#fff;
   display:flex;flex-direction:column;gap:6px;
 }
 .stat-card .icon{
@@ -265,7 +293,7 @@ table.test-table td.pct{font-weight:800;color:var(--ink);}
 .stat-card .lbl{font-size:10.5px;color:var(--gray);font-weight:600;}
 .stat-card .val{font-size:19px;font-weight:800;}
 
-.chart-card{border:1px solid var(--border);border-radius:10px;background:#fff;padding:14px;}
+.chart-card{border:1px solid var(--rc-border);border-radius:10px;background:#fff;padding:14px;}
 .chart-title{font-size:11px;font-weight:700;color:#374151;text-align:center;letter-spacing:0.5px;margin-bottom:8px;text-transform:uppercase;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 
@@ -307,7 +335,7 @@ table.test-table td.pct{font-weight:800;color:var(--ink);}
 .subj-pct{font-size:12px;font-weight:700;text-align:right;color:var(--ink);}
 .subj-overall{
   display:grid;grid-template-columns:170px 1fr 44px;align-items:center;gap:10px;
-  border-top:1px solid var(--border);padding-top:10px;margin-top:4px;
+  border-top:1px solid var(--rc-border);padding-top:10px;margin-top:4px;
 }
 .subj-overall .subj-name{font-weight:800;}
 .subj-overall .subj-pct{color:var(--blue);font-weight:800;}
@@ -324,7 +352,7 @@ table.test-table td.pct{font-weight:800;color:var(--ink);}
 }
 
 .analysis-card{
-  border:1px solid var(--border);border-radius:10px;background:#fff;padding:18px 20px;
+  border:1px solid var(--rc-border);border-radius:10px;background:#fff;padding:18px 20px;
   border-left:3px solid var(--blue);
 }
 .analysis-card .block-title{margin-bottom:12px;}
@@ -333,7 +361,7 @@ table.test-table td.pct{font-weight:800;color:var(--ink);}
 .analysis-card li:last-child{margin-bottom:0;}
 
 .two-card{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.side-card{border:1px solid var(--border);border-radius:10px;background:#fff;padding:16px 18px;border-left:3px solid var(--blue);}
+.side-card{border:1px solid var(--rc-border);border-radius:10px;background:#fff;padding:16px 18px;border-left:3px solid var(--blue);}
 .side-card ul{margin:0;padding-left:16px;}
 .side-card li{font-size:12.5px;line-height:1.6;color:#374151;margin-bottom:7px;}
 
@@ -346,9 +374,28 @@ table.test-table td.pct{font-weight:800;color:var(--ink);}
 .sw-list.strength .dot{background:var(--green-soft);color:var(--green);}
 .sw-list.improve .dot{background:var(--red-soft);color:var(--red);}
 
+/* footer — last page only (it lives in the last .page-block) */
+.rc-footer{
+  margin-top:26px;
+  padding-top:18px;
+  border-top:1px solid var(--rc-border);
+}
+.rc-footer-line{
+  font-size:12.5px;
+  line-height:1.9;
+  color:#6B7280;
+  letter-spacing:0.3px;
+  text-transform:uppercase;
+}
+.rc-footer-label{
+  font-weight:800;
+  color:#5A6472;
+  margin-right:5px;
+}
+
 @media (max-width:900px){
   .app{grid-template-columns:1fr;}
-  .form-panel{position:static;max-height:none;border-right:none;border-bottom:1px solid var(--border);}
+  .form-panel{position:static;max-height:none;border-right:none;border-bottom:1px solid var(--rc-border);}
   #report{width:100%;}
   .preview-panel{padding:16px;}
 }

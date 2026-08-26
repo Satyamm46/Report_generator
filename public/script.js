@@ -3,6 +3,12 @@ let testIdCounter = 0;
 let subjIdCounter = 0;
 let logoDataUrl = null; // holds base64 image once uploaded
 
+/* Drop your logo file here and it is picked up automatically — no code change.
+   Change the extension below if you use .svg / .jpg instead of .png.
+   If the file is absent the header falls back to the graduation-cap emoji. */
+const DEFAULT_LOGO_SRC = '/logo.png';
+let defaultLogoAvailable = false;
+
 const defaultTests = [
   {name:'Surds', date:'2026-07-19', obtained:27, total:30},
   {name:'Powers & Roots', date:'2026-07-26', obtained:17, total:30}
@@ -82,26 +88,60 @@ function escapeHtml(str){
   return d.innerHTML;
 }
 
+/* Resolves once on load so renderLogo() can decide synchronously whether
+   public/logo.png exists. An uploaded logo always takes precedence. */
+function probeDefaultLogo(){
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = DEFAULT_LOGO_SRC;
+  });
+}
+
 function renderLogo(){
   const previewEl = document.getElementById('logoPreview');
   const pvLogoEl = document.getElementById('pvLogo');
-  if(logoDataUrl){
-    previewEl.innerHTML = `<img src="${logoDataUrl}" alt="Logo">`;
-    pvLogoEl.innerHTML = `<img src="${logoDataUrl}" alt="Logo">`;
+  const src = logoDataUrl || (defaultLogoAvailable ? DEFAULT_LOGO_SRC : null);
+  if(src){
+    previewEl.innerHTML = `<img src="${src}" alt="Logo">`;
+    pvLogoEl.innerHTML = `<img src="${src}" alt="Logo">`;
   } else {
     previewEl.textContent = '🎓';
     pvLogoEl.textContent = '🎓';
   }
 }
 
+/* Tags each sheet in the preview with its page number. The tag carries
+   data-html2canvas-ignore so it never appears in the exported PDF, which draws
+   its own "Page n of m" footer. */
+function labelPages(){
+  const blocks = [...document.querySelectorAll('#report .page-block')];
+  blocks.forEach((block, i) => {
+    let tag = block.querySelector(':scope > .page-tag');
+    if(!tag){
+      tag = document.createElement('div');
+      tag.className = 'page-tag';
+      tag.setAttribute('data-html2canvas-ignore', 'true');
+      block.appendChild(tag);
+    }
+    tag.textContent = `Page ${i + 1} of ${blocks.length}`;
+  });
+}
+
 function renderAll(){
   // ---- meta ----
   document.getElementById('pvBrand').textContent = document.getElementById('instituteName').value || 'INSTITUTE NAME';
-  document.getElementById('pvTag').textContent = '-- ' + (document.getElementById('instituteTag').value || '') + ' --';
+  document.getElementById('pvTag').textContent = '--' + (document.getElementById('instituteTag').value || '') + '--';
   document.getElementById('pvDate').textContent = fmtDate(document.getElementById('reportDate').value);
   document.getElementById('pvStudentName').textContent = document.getElementById('studentName').value || '—';
   document.getElementById('pvCourse').textContent = document.getElementById('courseLevel').value || '—';
   document.getElementById('pvTeacher').textContent = document.getElementById('teacherName').value || '—';
+
+  // ---- footer (last page only) ----
+  document.getElementById('pvAddress1').textContent = document.getElementById('address1').value || '—';
+  document.getElementById('pvAddress2').textContent = document.getElementById('address2').value || '—';
+  document.getElementById('pvContact').textContent = document.getElementById('contactNo').value || '—';
 
   // ---- tests ----
   const rows = [...document.querySelectorAll('#testRows .test-row')];
@@ -300,39 +340,187 @@ function renderAll(){
   }
 }
 
+/* ============================================================
+   PDF EXPORT
+   ============================================================ */
+
+/* html2canvas 1.4.1 only parses rgb()/rgba()/hsl()/hsla(). Tailwind v4 emits
+   oklch(), which Lightning CSS then transpiles to lab(), plus
+   color-mix(in oklab, …) for opacity modifiers. Any of those reaching a
+   computed style throws 'unsupported color function "lab"'. globals.css keeps
+   them off `*` and `body`, and the sanitiser below is the safety net for
+   anything else (third-party CSS, preflight, future utilities). */
+const MODERN_COLOR_FN = /\b(?:oklch|oklab|lch|lab|hwb|color-mix|color)\(/i;
+
+const COLOR_PROPS = [
+  'color', 'backgroundColor', 'borderTopColor', 'borderRightColor',
+  'borderBottomColor', 'borderLeftColor', 'outlineColor',
+  'textDecorationColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke',
+];
+// Values that mix colours with other tokens, so they need substring rewriting.
+const COMPOUND_COLOR_PROPS = ['backgroundImage', 'boxShadow'];
+
+const _probeCtx = document.createElement('canvas').getContext('2d');
+const _colorCache = new Map();
+
+/* Canvas fillStyle is the browser's own colour parser: assigning any colour it
+   understands and reading it back yields #rrggbb or rgba(). */
+function toLegacyColor(value){
+  if(_colorCache.has(value)) return _colorCache.get(value);
+  let out = 'transparent';
+  try{
+    _probeCtx.fillStyle = '#000';
+    _probeCtx.fillStyle = value;
+    const normalised = _probeCtx.fillStyle;
+    if(typeof normalised === 'string' && !MODERN_COLOR_FN.test(normalised)){
+      out = normalised;
+    } else {
+      // Last resort: rasterise one pixel and read the sRGB bytes back.
+      _probeCtx.clearRect(0, 0, 1, 1);
+      _probeCtx.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = _probeCtx.getImageData(0, 0, 1, 1).data;
+      out = `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`;
+    }
+  }catch(err){
+    console.warn('Could not convert colour', value, err);
+  }
+  _colorCache.set(value, out);
+  return out;
+}
+
+/* Replaces every modern colour function inside a compound value, matching
+   balanced parentheses so nested forms like
+   color-mix(in oklab, lab(50% 0 0) 50%, transparent) are handled whole. */
+function rewriteModernColors(value){
+  const re = /\b(?:oklch|oklab|lch|lab|hwb|color-mix|color)\(/gi;
+  let out = '';
+  let last = 0;
+  let match;
+  while((match = re.exec(value)) !== null){
+    const start = match.index;
+    let depth = 0;
+    let end = -1;
+    for(let i = start + match[0].length - 1; i < value.length; i++){
+      if(value[i] === '(') depth++;
+      else if(value[i] === ')'){
+        depth--;
+        if(depth === 0){ end = i; break; }
+      }
+    }
+    if(end === -1) break; // unbalanced — leave the remainder untouched
+    out += value.slice(last, start) + toLegacyColor(value.slice(start, end + 1));
+    last = end + 1;
+    re.lastIndex = last;
+  }
+  return out + value.slice(last);
+}
+
+/* Rewrites unsupported colours to their exact rgb() equivalent on the live DOM.
+   The colours are identical, so nothing visibly changes. Returns a function that
+   puts the original inline values back. */
+function sanitizeColorsForCapture(root){
+  const undo = [];
+  const elements = [root, ...root.querySelectorAll('*')];
+  for(const el of elements){
+    const computed = getComputedStyle(el);
+    for(const prop of COLOR_PROPS){
+      const value = computed[prop];
+      if(value && MODERN_COLOR_FN.test(value)){
+        undo.push([el, prop, el.style[prop]]);
+        el.style[prop] = toLegacyColor(value);
+      }
+    }
+    for(const prop of COMPOUND_COLOR_PROPS){
+      const value = computed[prop];
+      if(value && MODERN_COLOR_FN.test(value)){
+        undo.push([el, prop, el.style[prop]]);
+        el.style[prop] = rewriteModernColors(value);
+      }
+    }
+  }
+  return () => {
+    for(const [el, prop, previous] of undo) el.style[prop] = previous;
+  };
+}
+
+/* Each .page-block is a self-contained section, so it is captured on its own and
+   placed on its own A4 page. The previous version rasterised the whole report
+   into one tall canvas and sliced it at fixed page heights, which cut charts,
+   tables and bullet lists in half. */
 async function downloadPdf(){
   const btn = document.getElementById('downloadBtn');
+  const report = document.getElementById('report');
+  const blocks = [...report.querySelectorAll('.page-block')];
+  if(!blocks.length) return;
+
+  const originalLabel = btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'Preparing PDF…';
-  const el = document.getElementById('report');
+  let restoreColors = null;
+
   try{
-    const canvas = await html2canvas(el, {scale:2, backgroundColor:'#FBFAF7', useCORS:true});
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p','pt','a4');
+    const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const imgW = pageW;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    let heightLeft = imgH;
-    let position = 0;
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
-    pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
-    heightLeft -= pageH;
-    while(heightLeft > 0){
-      position = heightLeft - imgH;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
-      heightLeft -= pageH;
+    const margin = 30;
+    const footerH = 24;
+    const availW = pageW - margin * 2;
+    // No running header: the branded header is part of the first .page-block, so
+    // it prints once on page 1 only, and the address footer is part of the last
+    // block. Only the page counter is drawn per page.
+    const availH = pageH - margin * 2 - footerH;
+
+    const student = (document.getElementById('studentName').value || 'Student').trim();
+
+    restoreColors = sanitizeColorsForCapture(report);
+
+    for(let i = 0; i < blocks.length; i++){
+      btn.textContent = `Preparing PDF… ${i + 1}/${blocks.length}`;
+      // Yield so the button label actually paints between captures.
+      await new Promise(requestAnimationFrame);
+
+      const canvas = await html2canvas(blocks[i], {
+        scale: 2,
+        backgroundColor: '#FBFAF7',
+        useCORS: true,
+        logging: false,
+      });
+
+      // Fit to width, then shrink to fit height if the block is unusually tall,
+      // so a block is never split across pages.
+      let w = availW;
+      let h = (canvas.height * w) / canvas.width;
+      if(h > availH){
+        h = availH;
+        w = (canvas.width * h) / canvas.height;
+      }
+      const x = margin + (availW - w) / 2;
+      const y = margin;
+
+      if(i > 0) pdf.addPage();
+
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.98), 'JPEG', x, y, w, h);
+
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(
+        `Page ${i + 1} of ${blocks.length}`,
+        pageW / 2,
+        pageH - margin + 4,
+        { align: 'center' }
+      );
     }
-    const name = (document.getElementById('studentName').value || 'student').replace(/\s+/g,'_');
+
+    const name = student.replace(/\s+/g, '_') || 'student';
     pdf.save(`Report_Card_${name}.pdf`);
   }catch(e){
     alert('Something went wrong generating the PDF: ' + e.message);
     console.error(e);
   }finally{
+    if(restoreColors) restoreColors();
     btn.disabled = false;
-    btn.textContent = '⬇ Download as PDF';
+    btn.textContent = originalLabel;
   }
 }
 
@@ -360,6 +548,7 @@ function initLogoUpload(){
 
 function initStaticFieldListeners(){
   ['instituteName','instituteTag','reportDate','studentName','courseLevel','teacherName',
+   'address1','address2','contactNo',
    'd0','d1','d2','d3','d4','consistencyText','highlightText','feedbackText','strengthsText','improveText']
    .forEach(id=>{
      document.getElementById(id).addEventListener('input', renderAll);
@@ -368,7 +557,7 @@ function initStaticFieldListeners(){
 
 let initialized = false;
 
-function init(){
+async function init(){
   // The script can be injected after DOMContentLoaded has already fired,
   // so init() is called directly in that case. Guard against double-init.
   if(initialized) return;
@@ -384,7 +573,12 @@ function init(){
   document.getElementById('downloadBtn').addEventListener('click', downloadPdf);
 
   renderLogo();
+  labelPages();
   renderAll();
+
+  // Swap in public/logo.png once we know whether it is there.
+  defaultLogoAvailable = await probeDefaultLogo();
+  if(defaultLogoAvailable) renderLogo();
 }
 
 if(document.readyState === 'loading'){

@@ -154,10 +154,20 @@
 }
 
 @layer base {
+  /* These are deliberately plain hex/rgba instead of `@apply border-border
+     outline-ring/50`. The utility form resolves to oklch() — which Lightning CSS
+     transpiles to lab() — and to color-mix(in oklab, …) for the /50 modifier.
+     Because it applies to `*`, every element in the report carried a colour that
+     html2canvas 1.4.1 cannot parse (it only understands rgb/rgba/hsl/hsla), so
+     the PDF export in public/script.js failed with "unsupported color function".
+     Border width is 0 by default from preflight, so these values are invisible
+     anyway. Keep any rule that targets `*` or `body` legacy-colour only. */
   * {
-    @apply border-border outline-ring/50;
+    border-color: #e5e5e5;
+    outline-color: rgba(181, 181, 181, 0.5);
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: #ffffff;
+    color: #252525;
   }
 }

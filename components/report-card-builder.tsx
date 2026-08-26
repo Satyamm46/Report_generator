@@ -41,7 +41,37 @@ export default function ReportCardBuilder() {
                 </button>
               </div>
             </div>
-            <p className="hint">If no image is uploaded, a graduation-cap icon is used instead.</p>
+            <p className="hint">
+              Drop your logo at <code>public/logo.png</code> to use it as the default, or upload one
+              here to override it. Falls back to a graduation-cap icon if neither is present.
+            </p>
+          </div>
+        </div>
+
+        <div className="section">
+          <div className="section-title">{'📍 Footer — Address & Contact'}</div>
+          <p className="hint" style={{ marginBottom: 10 }}>
+            Shown once, at the bottom of the last page only.
+          </p>
+          <div className="field">
+            <label htmlFor="address1">Address 1</label>
+            <input
+              type="text"
+              id="address1"
+              defaultValue="KOOLAR CAFE KING CIRCLE,SHOP NO.27 MATUNGA EAST"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="address2">Address 2</label>
+            <input
+              type="text"
+              id="address2"
+              defaultValue="ROCK ENCLAVE, SHOP NO. 8,KANDIVALI WEST, MUMBAI, MAHARASHTRA 400067"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="contactNo">Contact</label>
+            <input type="text" id="contactNo" defaultValue="+91 7034830386 / 9930368944" />
           </div>
         </div>
 
@@ -414,18 +444,36 @@ Practice more questions on simplification and complex expressions.`}
             </div>
           </div>
 
-          <div className="page-block two-card">
-            <div className="side-card">
-              <div className="block-title" style={{ color: 'var(--green)' }}>
-                Strengths
+          {/* Last page: the footer lives here so it prints once, on the final page only. */}
+          <div className="page-block">
+            <div className="two-card">
+              <div className="side-card">
+                <div className="block-title" style={{ color: 'var(--green)' }}>
+                  Strengths
+                </div>
+                <ul className="sw-list strength" id="pvStrengths" />
               </div>
-              <ul className="sw-list strength" id="pvStrengths" />
+              <div className="side-card">
+                <div className="block-title" style={{ color: 'var(--red)' }}>
+                  Improvement Areas
+                </div>
+                <ul className="sw-list improve" id="pvImprove" />
+              </div>
             </div>
-            <div className="side-card">
-              <div className="block-title" style={{ color: 'var(--red)' }}>
-                Improvement Areas
+
+            <div className="rc-footer">
+              <div className="rc-footer-line">
+                <span className="rc-footer-label">Address 1:</span>
+                <span id="pvAddress1" />
               </div>
-              <ul className="sw-list improve" id="pvImprove" />
+              <div className="rc-footer-line">
+                <span className="rc-footer-label">Address 2:</span>
+                <span id="pvAddress2" />
+              </div>
+              <div className="rc-footer-line">
+                <span className="rc-footer-label">Contact:</span>
+                <span id="pvContact" />
+              </div>
             </div>
           </div>
         </div>
