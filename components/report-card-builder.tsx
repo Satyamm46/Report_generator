@@ -223,7 +223,7 @@ Practice more questions on simplification and complex expressions.`}
       {/* ============ PREVIEW PANEL ============ */}
       <div className="preview-panel">
         <div id="report">
-          <div className="page-block">
+          <div className="rc-unit">
             <div className="rc-header">
               <div className="rc-logo" id="pvLogo">
                 {'🎓'}
@@ -315,7 +315,7 @@ Practice more questions on simplification and complex expressions.`}
             </div>
           </div>
 
-          <div className="page-block two-col">
+          <div className="rc-unit two-col">
             <div className="chart-card">
               <div className="chart-title">Test Wise % Score</div>
               <div className="chart-canvas-wrap">
@@ -330,7 +330,7 @@ Practice more questions on simplification and complex expressions.`}
             </div>
           </div>
 
-          <div className="page-block two-col">
+          <div className="rc-unit two-col">
             <div className="chart-card">
               <div className="chart-title">Score Distribution (All Tests)</div>
               <div className="chart-canvas-wrap">
@@ -357,7 +357,7 @@ Practice more questions on simplification and complex expressions.`}
             </div>
           </div>
 
-          <div className="page-block">
+          <div className="rc-unit">
             <div className="chart-card">
               <div className="chart-title" style={{ textAlign: 'left' }}>
                 Subject Wise Performance (Average %)
@@ -366,7 +366,7 @@ Practice more questions on simplification and complex expressions.`}
             </div>
           </div>
 
-          <div className="page-block">
+          <div className="rc-unit">
             <div className="chart-card">
               <div className="chart-title">Test Summary (Overall)</div>
               <div
@@ -420,7 +420,7 @@ Practice more questions on simplification and complex expressions.`}
             </div>
           </div>
 
-          <div className="page-block">
+          <div className="rc-unit">
             <div className="analysis-card">
               <div className="block-title" style={{ color: 'var(--blue)' }}>
                 Consistency Analysis
@@ -429,7 +429,7 @@ Practice more questions on simplification and complex expressions.`}
             </div>
           </div>
 
-          <div className="page-block two-card">
+          <div className="rc-unit two-card">
             <div className="side-card">
               <div className="block-title" style={{ color: 'var(--blue)' }}>
                 Performance Highlight
@@ -444,36 +444,35 @@ Practice more questions on simplification and complex expressions.`}
             </div>
           </div>
 
-          {/* Last page: the footer lives here so it prints once, on the final page only. */}
-          <div className="page-block">
-            <div className="two-card">
-              <div className="side-card">
-                <div className="block-title" style={{ color: 'var(--green)' }}>
-                  Strengths
-                </div>
-                <ul className="sw-list strength" id="pvStrengths" />
+          <div className="rc-unit two-card">
+            <div className="side-card">
+              <div className="block-title" style={{ color: 'var(--green)' }}>
+                Strengths
               </div>
-              <div className="side-card">
-                <div className="block-title" style={{ color: 'var(--red)' }}>
-                  Improvement Areas
-                </div>
-                <ul className="sw-list improve" id="pvImprove" />
-              </div>
+              <ul className="sw-list strength" id="pvStrengths" />
             </div>
+            <div className="side-card">
+              <div className="block-title" style={{ color: 'var(--red)' }}>
+                Improvement Areas
+              </div>
+              <ul className="sw-list improve" id="pvImprove" />
+            </div>
+          </div>
 
-            <div className="rc-footer">
-              <div className="rc-footer-line">
-                <span className="rc-footer-label">Address 1:</span>
-                <span id="pvAddress1" />
-              </div>
-              <div className="rc-footer-line">
-                <span className="rc-footer-label">Address 2:</span>
-                <span id="pvAddress2" />
-              </div>
-              <div className="rc-footer-line">
-                <span className="rc-footer-label">Contact:</span>
-                <span id="pvContact" />
-              </div>
+          {/* paginate() moves this into the last sheet, where CSS pins it to the
+              very bottom. It therefore prints once, at the foot of the last page. */}
+          <div className="rc-footer" id="rcFooter">
+            <div className="rc-footer-line">
+              <span className="rc-footer-label">Address 1:</span>
+              <span id="pvAddress1" />
+            </div>
+            <div className="rc-footer-line">
+              <span className="rc-footer-label">Address 2:</span>
+              <span id="pvAddress2" />
+            </div>
+            <div className="rc-footer-line">
+              <span className="rc-footer-label">Contact:</span>
+              <span id="pvContact" />
             </div>
           </div>
         </div>

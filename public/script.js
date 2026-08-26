@@ -112,6 +112,92 @@ function renderLogo(){
   }
 }
 
+/* Packs the report's sections (.rc-unit) into A4-proportioned sheets
+   (.page-block), so each sheet is a full page rather than a half-empty card.
+   Runs on every render because section heights are dynamic — adding a test,
+   a subject or another line of feedback changes how much fits on a page.
+   The footer is packed last, so it always lands on the final sheet, where
+   `margin-top:auto` pins it to the very bottom. */
+const A4_RATIO = 297 / 210; // portrait A4, height / width
+
+/* How far the final sheet may run over one page to keep the footer with the
+   content. The PDF export scales an oversized page down to fit, and a few
+   percent smaller is imperceptible next to a near-blank trailing page. */
+const FOOTER_OVERFLOW_TOLERANCE = 0.15;
+
+/* Leftover height on a sheet is shared out between its sections, but only up to
+   this much per gap — past that the sections start to look disconnected rather
+   than deliberately spaced. */
+const MAX_EXTRA_GAP = 40;
+
+function paginate(){
+  const report = document.getElementById('report');
+  const footer = document.getElementById('rcFooter');
+  const units = [...report.querySelectorAll('.rc-unit')];
+  if(!units.length) return;
+
+  // Measure inside a real sheet so the widths (and therefore the wrapped text
+  // heights) match the final layout exactly.
+  const probe = document.createElement('div');
+  probe.className = 'page-block';
+  probe.style.aspectRatio = 'auto'; // measuring only — don't force a page height
+  report.replaceChildren(probe);
+  for(const u of units) probe.appendChild(u);
+  if(footer) probe.appendChild(footer);
+
+  const probeStyle = getComputedStyle(probe);
+  const gap = parseFloat(probeStyle.rowGap) || 0;
+  const padY = parseFloat(probeStyle.paddingTop) + parseFloat(probeStyle.paddingBottom);
+  const contentH = Math.round(report.clientWidth * A4_RATIO) - padY;
+
+  const heights = new Map(units.map(u => [u, u.offsetHeight]));
+  const footerH = footer ? footer.offsetHeight : 0;
+
+  // Greedily fill each sheet with content sections, starting a new one only when
+  // the next section would overflow. A section taller than a page gets a sheet to
+  // itself; the PDF export then scales that page down to fit.
+  const pages = [];
+  let current = null;
+  for(const unit of units){
+    const h = heights.get(unit);
+    if(current && current.height + gap + h <= contentH){
+      current.items.push(unit);
+      current.height += gap + h;
+    } else {
+      if(current) pages.push(current);
+      current = { items: [unit], height: h };
+    }
+  }
+  if(current) pages.push(current);
+
+  // The footer belongs at the foot of the last page of content. Only give it a
+  // sheet of its own if it cannot fit even with the tolerance above.
+  if(footer){
+    const last = pages[pages.length - 1];
+    const needed = last.height + gap + footerH;
+    if(needed <= contentH * (1 + FOOTER_OVERFLOW_TOLERANCE)){
+      last.items.push(footer);
+      last.height = needed;
+    } else {
+      pages.push({ items: [footer], height: footerH });
+    }
+  }
+
+  report.replaceChildren();
+  for(const pageDef of pages){
+    const sheet = document.createElement('div');
+    sheet.className = 'page-block';
+    for(const el of pageDef.items) sheet.appendChild(el);
+
+    const slots = pageDef.items.length - 1;
+    const slack = contentH - pageDef.height;
+    if(slots > 0 && slack > 0){
+      sheet.style.rowGap = (gap + Math.min(slack / slots, MAX_EXTRA_GAP)) + 'px';
+    }
+    report.appendChild(sheet);
+  }
+}
+
 /* Tags each sheet in the preview with its page number. The tag carries
    data-html2canvas-ignore so it never appears in the exported PDF, which draws
    its own "Page n of m" footer. */
@@ -204,6 +290,13 @@ function renderAll(){
   document.getElementById('pvFeedback').innerHTML = bulletsFromTextarea('feedbackText').map(l=>`<li>${escapeHtml(l)}</li>`).join('');
   document.getElementById('pvStrengths').innerHTML = bulletsFromTextarea('strengthsText').map(l=>`<li><span class="dot">✓</span>${escapeHtml(l)}</li>`).join('');
   document.getElementById('pvImprove').innerHTML = bulletsFromTextarea('improveText').map(l=>`<li><span class="dot">•</span>${escapeHtml(l)}</li>`).join('');
+
+  // All text content is in place, so section heights are final. Repack the
+  // sheets before drawing charts: the chart wrappers have a fixed height, so
+  // the measurements are accurate, and no chart is moved after Chart.js binds
+  // to its canvas.
+  paginate();
+  labelPages();
 
   // Charts need the Chart.js library. This is the LAST section in the
   // function and safe to bail out of early — everything above (fields,
@@ -568,13 +661,14 @@ async function init(){
   initStaticFieldListeners();
   initLogoUpload();
 
-  document.getElementById('addTestBtn').addEventListener('click', ()=>addTestRow());
-  document.getElementById('addSubjectBtn').addEventListener('click', ()=>addSubjectRow());
+  // renderAll() repaginates, so adding a row must trigger it — the remove
+  // buttons already do.
+  document.getElementById('addTestBtn').addEventListener('click', ()=>{ addTestRow(); renderAll(); });
+  document.getElementById('addSubjectBtn').addEventListener('click', ()=>{ addSubjectRow(); renderAll(); });
   document.getElementById('downloadBtn').addEventListener('click', downloadPdf);
 
   renderLogo();
-  labelPages();
-  renderAll();
+  renderAll(); // also paginates and labels the sheets
 
   // Swap in public/logo.png once we know whether it is there.
   defaultLogoAvailable = await probeDefaultLogo();
