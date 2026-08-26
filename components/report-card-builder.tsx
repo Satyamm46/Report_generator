@@ -58,7 +58,7 @@ export default function ReportCardBuilder() {
             <input
               type="text"
               id="address1"
-              defaultValue="KOOLAR CAFE KING CIRCLE,SHOP NO.27 MATUNGA EAST"
+              defaultValue="ASHOKA COMPLEX, RANADE ROAD, DADAR WEST, MUMBAI-28"
             />
           </div>
           <div className="field">
